@@ -1,0 +1,49 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip the project
+        run: |
+          ls -la
+          unzip -o CurrencyRates_Android.zip -d src
+          ls -R src | head -50
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build
+        working-directory: src/currency-rates
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp src/currency-rates/app/build/outputs/apk/release/app-release.apk CurrencyRates.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CurrencyRates-APK
+          path: CurrencyRates.apk
+
+      - name: Publish to Releases (easy download from the phone)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest CurrencyRates.apk --title "Currency Rates - build ${{ github.run_number }}" --notes "Download CurrencyRates.apk and install it on the phone."
