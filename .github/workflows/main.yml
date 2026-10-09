@@ -1,84 +1,49 @@
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-rootProject.name = "CurrencyRates"
-include ':app'
+name: Build APK
 
-שערי מטבע לאנדרואיד: איך מקבלים את ה-APK
-==========================================
+on:
+  push:
+  workflow_dispatch:
 
-את קובץ ה-APK בונה GitHub בחינם, בשרתים שלו. אין צורך להתקין כלום על המחשב.
+permissions:
+  contents: write
 
-שלב 1: חשבון ומאגר (פעם אחת)
-------------------------------
-1. נכנסים ל-https://github.com ונרשמים (חינם). אם יש כבר חשבון, מתחברים.
-2. למעלה מימין לוחצים על "+" ובוחרים "New repository".
-3. ב-Repository name כותבים: currency-rates
-4. בוחרים Public (כך קל להוריד את ה-APK לטלפון בלי להתחבר).
-5. לוחצים על "Create repository".
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-שלב 2: העלאת הקבצים
----------------------
-1. מחלצים את ה-ZIP במחשב (קליק ימני > "חלץ הכל").
-2. בדף המאגר החדש לוחצים על הקישור "uploading an existing file".
-3. פותחים את התיקייה שחולצה, מסמנים את כל מה שבתוכה (Ctrl+A),
-   וגוררים לחלון הדפדפן. חשוב לגרור גם את התיקייה .github
-4. למטה לוחצים על "Commit changes".
+      - name: Unzip the project
+        run: |
+          ls -la
+          unzip -o CurrencyRates_Android.zip -d src
+          ls -R src | head -50
 
-שלב 3: הבנייה (אוטומטית, 3 עד 6 דקות)
---------------------------------------
-1. לוחצים על הלשונית "Actions" למעלה.
-   אם מופיע כפתור ירוק "I understand my workflows, go ahead and enable them", לוחצים עליו.
-2. רואים ריצה בשם "Build APK" עם עיגול צהוב שמסתובב. מחכים שיהפוך ל-✓ ירוק.
-   אם הריצה לא התחילה מעצמה: לוחצים משמאל על "Build APK", אחר כך על "Run workflow" ושוב על "Run workflow".
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-שלב 4: התקנה בטלפון
---------------------
-1. בטלפון פותחים בדפדפן את הכתובת (מחליפים USERNAME בשם המשתמש שלך ב-GitHub):
-   https://github.com/USERNAME/currency-rates/releases/latest
-2. מורידים את הקובץ CurrencyRates.apk ופותחים אותו.
-3. אם הטלפון שואל, מאשרים "התקנה ממקורות לא ידועים" לדפדפן.
-   אם Play Protect מזהיר על "אפליקציה לא מוכרת", בוחרים "פרטים נוספים" ואז "התקן בכל זאת".
-   זה רגיל לכל אפליקציה שלא הגיעה מחנות Play.
-4. בפתיחה הראשונה מאשרים "התראות".
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
 
-דרך נוספת: ב-Actions נכנסים לריצה המוצלחת ולמטה, תחת Artifacts, מורידים את CurrencyRates-APK.
-מגיע ZIP שבתוכו ה-APK. אפשר להעביר אותו לטלפון בוואטסאפ לעצמך, בדרייב או בכבל.
+      - name: Build
+        working-directory: src/currency-rates
+        run: gradle assembleRelease --no-daemon --stacktrace
 
-עדכונים בעתיד
---------------
-כשמשנים קובץ ומעלים אותו שוב למאגר, GitHub בונה גרסה חדשה לבד.
-מתקינים את ה-APK החדש מעל הישן, וההגדרות וההתראות נשמרות.
+      - name: Rename APK
+        run: cp src/currency-rates/app/build/outputs/apk/release/app-release.apk CurrencyRates.apk
 
-אם משהו נכשל (X אדום ב-Actions)
---------------------------------
-לוחצים על הריצה האדומה ואז על "build", מצלמים את השורות האדומות ושולחים לי.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CurrencyRates-APK
+          path: CurrencyRates.apk
 
-מה האפליקציה עושה
-------------------
-* שער יציג (בנק ישראל) ושער רציף ל-7 מטבעות, כמו בתוכנה במחשב.
-* התראות: מעל או מתחת לשער, שינוי יומי %, ופער בין היציג לרציף %.
-  אפשר לבחור לבדוק לפי היציג, לפי הרציף או לפי כל אחד מהם.
-* בדיקה ברקע כל 15 דקות (אפשר לשנות), גם כשהאפליקציה סגורה.
-  ההתראה מגיעה לשורת ההתראות עם צליל.
-* יומן התראות ושיתוף שלו כ-CSV.
-* כשהאפליקציה פתוחה, היא מתרעננת כל 60 שניות.
-
-plugins {
-    id 'com.android.application' version '8.7.3' apply false
-}
-
-org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-android.useAndroidX=false
-android.nonTransitiveRClass=true
+      - name: Publish to Releases (easy download from the phone)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest -y --cleanup-tag || true
+          gh release create latest CurrencyRates.apk --title "Currency Rates - build ${{ github.run_number }}" --notes "Download CurrencyRates.apk and install it on the phone."
